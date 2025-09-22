@@ -261,25 +261,25 @@ with app_tab:
         genai_summary("System-wide Forecast", forecast_df)
 
     with tab10:
-    st.subheader("❓ Ask a Query")
-    st.markdown("Type your question and let the GenAI assistant help:")
-    query = st.text_input("Enter your question:")
+        st.subheader("❓ Ask a Query")
+        st.markdown("Type your question and let the GenAI assistant help:")
+        query = st.text_input("Enter your question:")
 
-    if query:
-        # Aggregate hazards from all tabs
-        hazards = []
-        for df in [
-            drilling_view_table,
-            bit_wear_table,
-            logs_table,
-            seismic_table,
-            perf_table,
-            hazard_table,
-            forecast_table,
-        ]:
-            if isinstance(df, pd.DataFrame) and "Issue" in df.columns:
-                for _, row in df.iterrows():
-                    hazards.append(
+        if query:
+            # Aggregate hazards from all tabs
+            hazards = []
+            for df in [
+                drilling_view_table,
+                bit_wear_table,
+                logs_table,
+                seismic_table,
+                perf_table,
+                hazard_table,
+                forecast_table,
+            ]:
+                if isinstance(df, pd.DataFrame) and "Issue" in df.columns:
+                    for _, row in df.iterrows():
+                        hazards.append(
                         f"- {row['Issue']} (Severity: {row['Severity']}) | "
                         f"Hazard: {row['Operational Hazard']} | "
                         f"Safety Risk: {row['Employee Safety Risk']}"
