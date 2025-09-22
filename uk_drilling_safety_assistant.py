@@ -1,55 +1,48 @@
-import os
-import random
-import numpy as np
-import pandas as pd
-import plotly.express as px
+# uk_drilling_safety_assistant.py
 import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import os, random
 from datetime import datetime, timedelta
-from openai import AzureOpenAI
 from dotenv import load_dotenv
+from openai import AzureOpenAI
 
-# ==============================
+# -----------------------------
 # Azure OpenAI Setup
-# ==============================
+# -----------------------------
 load_dotenv()
-
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-)
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-raj")
 
-# ==============================
-# Session State Setup
-# ==============================
-if "all_hazards" not in st.session_state:
-    st.session_state.all_hazards = []
+client = AzureOpenAI(
+    api_key=AZURE_OPENAI_API_KEY,
+    api_version=AZURE_OPENAI_API_VERSION,
+    azure_endpoint=AZURE_OPENAI_ENDPOINT,
+)
 
-# ==============================
-# Data Simulation Helpers
-# ==============================
+# -----------------------------
+# Simulation Helpers
+# -----------------------------
 def simulate_seismic():
     now = datetime.now()
-    timestamps = [now - timedelta(seconds=60 * i) for i in range(30)]
-    latitudes = np.random.uniform(57.0, 57.5, 30)
-    longitudes = np.random.uniform(-1.5, -0.5, 30)
-    amplitudes = np.random.uniform(0.2, 0.8, 30)
-    risk_levels = random.choices(["🟢", "🟡", "🔴"], weights=[1, 3, 6], k=30)
+    timestamps = [now - timedelta(seconds=60*i) for i in range(30)]
     return pd.DataFrame({
         "Timestamp": timestamps,
-        "Latitude": latitudes,
-        "Longitude": longitudes,
-        "Amplitude": amplitudes,
-        "Fault Risk": risk_levels
+        "Latitude": np.random.uniform(57.0, 57.5, 30),
+        "Longitude": np.random.uniform(-1.5, -0.5, 30),
+        "Amplitude": np.random.uniform(0.2, 0.8, 30),
+        "Fault Risk": random.choices(["🟢", "🟡", "🔴"], weights=[1, 3, 6], k=30)
     })
 
 def simulate_drilling_view():
     timestamps = pd.date_range(end=pd.Timestamp.now(), periods=50, freq="min")
     return pd.DataFrame({
         "Timestamp": timestamps,
-        "Torque": np.random.uniform(300, 500, size=len(timestamps)),
-        "ROP": np.random.uniform(10, 20, size=len(timestamps))
+        "Torque": np.random.uniform(300, 500, len(timestamps)),
+        "ROP": np.random.uniform(10, 20, len(timestamps))
     })
 
 def simulate_logs():
@@ -68,212 +61,223 @@ def simulate_bit_wear():
     wear = (wear / max(wear)) * 100
     return pd.DataFrame({"Time": time, "Bit Wear (%)": wear})
 
-# ==============================
+# -----------------------------
 # Streamlit Layout
-# ==============================
+# -----------------------------
 st.set_page_config(page_title="UK Oil & Gas Safety & Drilling Optimization Assistant", layout="wide")
 main_tab, app_tab = st.tabs(["📘 Overview", "🛠️ Main App"])
 
-# ==============================
-# Overview Tab
-# ==============================
 with main_tab:
     st.title("📘 Overview: UK Oil & Gas Safety & Drilling Optimization Assistant")
     st.markdown("""
-Welcome to the **UK Drilling Safety Assistant** – a GenAI-powered dashboard to monitor and enhance the safety of oil & gas drilling operations.
+This assistant monitors drilling operations, forecasts risks, and provides GenAI-driven safety recommendations.  
+Navigate through each tab for live simulations and hazard advisories.
+""")
 
-This prototype simulates conditions in a large-scale UK drilling operation and provides insights on safety risks and mitigation steps.
-
-Navigate the tabs to explore live hazards and ask GenAI about worker safety.
-    """)
-
-# ==============================
-# Main App Tabs
-# ==============================
 with app_tab:
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "🎛️ Real-Time Drilling View", "🪓 Bit Wear Monitoring", "💡 Auto Parameter Tuning",
-        "🔥 Safety & Risk Prediction", "📈 Logs & Lithology Viewer", "🌍 Seismic Interpreter",
-        "📊 Performance Dashboard", "📌 GenAI Recommendations", "🧠 GenAI Forecast", "❓ Ask a Query"
+    tabs = st.tabs([
+        "🎛️ Real-Time Drilling View",
+        "🪓 Bit Wear Monitoring",
+        "💡 Auto Parameter Tuning",
+        "🔥 Safety & Risk Prediction",
+        "📈 Logs & Lithology Viewer",
+        "🌍 Seismic Interpreter",
+        "📊 Performance Dashboard",
+        "📌 GenAI Recommendations",
+        "🧠 GenAI Forecast",
+        "❓ Ask a Query"
     ])
 
-    # ------------------------------
-    # Tab 1 - Drilling View
-    # ------------------------------
-    with tab1:
+    # --------------------------------
+    # Tab 1: Real-Time Drilling View
+    # --------------------------------
+    with tabs[0]:
         st.subheader("🎛️ Real-Time Drilling View")
         drilling_df = simulate_drilling_view()
-        st.dataframe(drilling_df)
-        fig = px.line(drilling_df, x="Timestamp", y=["Torque", "ROP"], title="Torque and ROP Trends")
-        st.plotly_chart(fig, use_container_width=True)
+        st.line_chart(drilling_df.set_index("Timestamp")[["Torque", "ROP"]])
 
-        drilling_view_table = pd.DataFrame({
-            "Issue": ["Torque/ROP Drift", "High Vibration"],
-            "Operational Hazard": ["Poor hole cleaning, stuck pipe", "Fatigue of BHA, component failure"],
-            "Employee Safety Risk": ["Unexpected pipe trip, injury risk", "Tool detachment, flying debris"],
-            "Severity": ["🟡", "🔴"],
-            "Mitigation Step": ["Optimize cleaning schedule", "Use vibration dampeners"]
-        })
-        st.dataframe(drilling_view_table, use_container_width=True)
+        hazards = [
+            {"Issue": "Torque/ROP Drift", "Severity": "🟡", "Risk": "Poor hole cleaning, stuck pipe"},
+            {"Issue": "High Vibration", "Severity": "🔴", "Risk": "Fatigue of BHA, component failure"},
+        ]
+        st.session_state["drilling_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-        for _, row in drilling_view_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
-
-    # ------------------------------
-    # Tab 2 - Bit Wear
-    # ------------------------------
-    with tab2:
+    # --------------------------------
+    # Tab 2: Bit Wear Monitoring
+    # --------------------------------
+    with tabs[1]:
         st.subheader("🪓 Bit Wear Monitoring")
         wear_df = simulate_bit_wear()
         st.line_chart(wear_df.set_index("Time"))
-        bit_wear_table = pd.DataFrame({
-            "Issue": ["High Bit Wear", "Overpull Events"],
-            "Operational Hazard": ["Bit failure", "Pipe over-tension"],
-            "Employee Safety Risk": ["Flying debris", "Whiplash injuries"],
-            "Severity": ["🔴", "🟡"],
-            "Mitigation Step": ["Replace bit early", "Controlled tripping speeds"]
-        })
-        st.dataframe(bit_wear_table, use_container_width=True)
 
-        for _, row in bit_wear_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "High Bit Wear", "Severity": "🔴", "Risk": "Bit failure during drilling"},
+            {"Issue": "Overpull Events", "Severity": "🟡", "Risk": "Pipe over-tension"}
+        ]
+        st.session_state["bit_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 3 - Auto Parameter Tuning
-    # ------------------------------
-    with tab3:
+    # --------------------------------
+    # Tab 3: Auto Parameter Tuning
+    # --------------------------------
+    with tabs[2]:
         st.subheader("💡 Auto Parameter Tuning")
         drilling_df = simulate_drilling_view()
-        st.line_chart(drilling_df.set_index("Timestamp"))
-        tuning_table = pd.DataFrame({
-            "Issue": ["Torque/ROP Drift", "High Vibration"],
-            "Operational Hazard": ["Poor hole cleaning", "Component fatigue"],
-            "Employee Safety Risk": ["Stuck pipe", "Flying debris"],
-            "Severity": ["🟡", "🔴"],
-            "Mitigation Step": ["Optimize cleaning schedule", "Dampeners"]
-        })
-        st.dataframe(tuning_table, use_container_width=True)
+        st.line_chart(drilling_df.set_index("Timestamp")[["Torque", "ROP"]])
 
-        for _, row in tuning_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "Incorrect RPM", "Severity": "🟡", "Risk": "Potential BHA stress"},
+            {"Issue": "Torque Instability", "Severity": "🔴", "Risk": "Unexpected stalls"}
+        ]
+        st.session_state["tuning_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 4 - Safety Prediction
-    # ------------------------------
-    with tab4:
+    # --------------------------------
+    # Tab 4: Safety & Risk Prediction
+    # --------------------------------
+    with tabs[3]:
         st.subheader("🔥 Safety & Risk Prediction")
-        risk_table = pd.DataFrame({
-            "Issue": ["Excessive Downtime"],
-            "Operational Hazard": ["Crew fatigue"],
-            "Employee Safety Risk": ["Accidents from exhaustion"],
-            "Severity": ["🟡"],
-            "Mitigation Step": ["Shift rotation"]
+        perf_data = pd.DataFrame({
+            "Metric": ["Drilling Speed", "Fuel Usage", "Downtime Hours"],
+            "Value": [np.random.uniform(15, 25), np.random.uniform(1000, 2000), np.random.randint(2, 6)],
+            "Unit": ["m/hr", "L/day", "hours"]
         })
-        st.dataframe(risk_table)
+        st.dataframe(perf_data)
 
-        for _, row in risk_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "Excessive Downtime", "Severity": "🟡", "Risk": "Crew fatigue, accident potential"}
+        ]
+        st.session_state["safety_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 5 - Logs Viewer
-    # ------------------------------
-    with tab5:
+    # --------------------------------
+    # Tab 5: Logs & Lithology Viewer
+    # --------------------------------
+    with tabs[4]:
         st.subheader("📈 Logs & Lithology Viewer")
         logs_df = simulate_logs()
-        st.line_chart(logs_df.set_index("Depth (ft)"))
-        logs_table = pd.DataFrame({
-            "Issue": ["Shale Instability"],
-            "Operational Hazard": ["Formation collapse"],
-            "Employee Safety Risk": ["Rig instability"],
-            "Severity": ["🔴"],
-            "Mitigation Step": ["Stabilizers"]
-        })
-        st.dataframe(logs_table)
+        st.line_chart(logs_df.set_index("Depth (ft)")[["GR (API)", "NPHI (v/v)"]])
 
-        for _, row in logs_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "Abnormal GR/NPHI Logs", "Severity": "🔴", "Risk": "Formation collapse risk"},
+            {"Issue": "Shale Instability", "Severity": "🟡", "Risk": "Sloughing or swelling"}
+        ]
+        st.session_state["log_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 6 - Seismic
-    # ------------------------------
-    with tab6:
+    # --------------------------------
+    # Tab 6: Seismic Interpreter
+    # --------------------------------
+    with tabs[5]:
         st.subheader("🌍 Seismic Interpreter")
         seismic_df = simulate_seismic()
         st.scatter_chart(seismic_df, x="Longitude", y="Latitude", color="Fault Risk")
-        seismic_table = pd.DataFrame({
-            "Issue": ["Seismic Fault Zone"],
-            "Operational Hazard": ["Casing collapse"],
-            "Employee Safety Risk": ["Explosion"],
-            "Severity": ["🔴"],
-            "Mitigation Step": ["Pre-check seismic"]
-        })
-        st.dataframe(seismic_table)
 
-        for _, row in seismic_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "Seismic Fault Zone", "Severity": "🔴", "Risk": "Formation influx risk"},
+            {"Issue": "Pressure Contrast Zone", "Severity": "🔴", "Risk": "Kick / blowout risk"}
+        ]
+        st.session_state["seismic_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 7 - Dashboard
-    # ------------------------------
-    with tab7:
+    # --------------------------------
+    # Tab 7: Performance Dashboard
+    # --------------------------------
+    with tabs[6]:
         st.subheader("📊 Performance Dashboard")
-        perf_table = pd.DataFrame({
-            "Issue": ["ROP Variance"],
-            "Operational Hazard": ["Hole cleaning issues"],
-            "Employee Safety Risk": ["Stuck pipe risk"],
-            "Severity": ["🟡"],
-            "Mitigation Step": ["Monitor ROP"]
+        perf_df = pd.DataFrame({
+            "KPI": ["ROP Variance (%)", "NPT (%)", "Drilling Stability Index"],
+            "Value": [12.5, 6.7, 0.78]
         })
-        st.dataframe(perf_table)
+        st.bar_chart(perf_df.set_index("KPI"))
 
-        for _, row in perf_table.iterrows():
-            st.session_state.all_hazards.append(f"{row['Issue']} ({row['Severity']}) - {row['Operational Hazard']}")
+        hazards = [
+            {"Issue": "ROP Variance High", "Severity": "🟡", "Risk": "Potential stuck pipe"},
+        ]
+        st.session_state["perf_hazards"] = hazards
+        st.dataframe(pd.DataFrame(hazards))
 
-    # ------------------------------
-    # Tab 8 - Recommendations
-    # ------------------------------
-    with tab8:
+    # --------------------------------
+    # Tab 8: 📌 GenAI Recommendations
+    # --------------------------------
+    with tabs[7]:
         st.subheader("📌 GenAI Recommendations")
-        st.info("This tab will show recommendations in future versions.")
-
-    # ------------------------------
-    # Tab 9 - Forecast
-    # ------------------------------
-    with tab9:
-        st.subheader("🧠 GenAI Forecast")
-        st.info("This tab aggregates hazards (see Ask a Query).")
-
-    # ------------------------------
-    # Tab 10 - Ask a Query
-    # ------------------------------
-    with tab10:
-        st.subheader("❓ Ask a Query")
-        query = st.text_input("Enter your question:")
-
-        if query:
-            hazard_summary = "\n".join(st.session_state.all_hazards[:50])
-
+        all_hazards = sum([st.session_state.get(k, []) for k in st.session_state.keys() if "hazards" in k], [])
+        if not all_hazards:
+            st.warning("⚠️ No hazards collected yet.")
+        else:
+            hazard_text = "\n".join([f"- {h['Issue']} ({h['Severity']}) → {h['Risk']}" for h in all_hazards])
             prompt = f"""
-You are a drilling safety assistant. Hazards detected so far:
+You are a drilling safety advisor. Given these identified hazards:
 
-{hazard_summary}
+{hazard_text}
 
-User Question: {query}
-
-Answer clearly:
-- Is worker safety acceptable overall? (Safe / Unsafe)
-- Justify based on hazard severities.
-- Provide 3 concrete safety recommendations.
+Provide 3 concrete safety recommendations:
+- ✅ Action
+- 🔍 Why
+- 📈 Expected Impact
 """
-            with st.spinner("Analyzing with Azure OpenAI..."):
+            with st.spinner("Generating recommendations..."):
                 try:
-                    response = client.chat.completions.create(
+                    resp = client.chat.completions.create(
                         model=DEPLOYMENT_NAME,
                         messages=[{"role": "user", "content": prompt}],
-                        temperature=0.3,
-                        max_tokens=700,
+                        max_tokens=600
                     )
-                    st.markdown("### 🧠 GenAI Safety Assessment")
-                    st.success(response.choices[0].message.content)
+                    st.success(resp.choices[0].message.content.strip())
                 except Exception as e:
-                    st.error(f"GenAI error: {e}")
+                    st.error(f"GenAI failed: {e}")
+
+    # --------------------------------
+    # Tab 9: 🧠 GenAI Forecast
+    # --------------------------------
+    with tabs[8]:
+        st.subheader("🧠 GenAI Forecast")
+        all_hazards = sum([st.session_state.get(k, []) for k in st.session_state.keys() if "hazards" in k], [])
+        hazard_text = "\n".join([f"- {h['Issue']} ({h['Severity']}) → {h['Risk']}" for h in all_hazards]) or "No hazards logged."
+        prompt = f"""
+You are a drilling safety forecaster. Based on hazards:
+
+{hazard_text}
+
+Summarize overall worker safety and highlight the top 3 risks to focus on in the next 12 hours.
+"""
+        with st.spinner("Forecasting..."):
+            try:
+                resp = client.chat.completions.create(
+                    model=DEPLOYMENT_NAME,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=500
+                )
+                st.info(resp.choices[0].message.content.strip())
+            except Exception as e:
+                st.error(f"GenAI failed: {e}")
+
+    # --------------------------------
+    # Tab 10: ❓ Ask a Query
+    # --------------------------------
+    with tabs[9]:
+        st.subheader("❓ Ask a Query")
+        q = st.text_input("Enter your question:")
+        if q:
+            all_hazards = sum([st.session_state.get(k, []) for k in st.session_state.keys() if "hazards" in k], [])
+            hazard_text = "\n".join([f"- {h['Issue']} ({h['Severity']}) → {h['Risk']}" for h in all_hazards]) or "No hazards identified."
+            prompt = f"""
+User question: "{q}"
+
+Here are current hazards:
+{hazard_text}
+
+Answer the question with reference to these hazards and overall worker safety.
+"""
+            with st.spinner("Thinking..."):
+                try:
+                    resp = client.chat.completions.create(
+                        model=DEPLOYMENT_NAME,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=500
+                    )
+                    st.info(resp.choices[0].message.content.strip())
+                except Exception as e:
+                    st.error(f"GenAI failed: {e}")
