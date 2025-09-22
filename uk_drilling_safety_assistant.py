@@ -262,17 +262,46 @@ with app_tab:
 
     # Tab10
     with tab10:
-        st.subheader("❓ Ask a Query")
-        query = st.text_input("Enter your question:")
-        if query:
-            with st.spinner("🔍 GenAI thinking..."):
-                try:
-                    response = client.chat.completions.create(
-                        model=DEPLOYMENT_NAME,
-                        messages=[{"role": "user", "content": query}],
-                        temperature=0.4,
-                        max_tokens=400
-                    )
-                    st.success(response.choices[0].message.content)
-                except Exception as e:
-                    st.error(f"GenAI error: {str(e)}")
+    st.subheader("❓ Ask a Query")
+    st.markdown("Type your question and let the GenAI assistant help:")
+    query = st.text_input("Enter your question:")
+
+    if query:
+        # Aggregate hazards from all tabs
+        hazards = []
+        for df in [drilling_view_table, bit_wear_table, logs_table, seismic_table, perf_table, hazard_table, forecast_table]:
+            if 'Issue' in df.columns:
+                for _, row in df.iterrows():
+                    hazards.append(f"- {row['Issue']} (Severity: {row['Severity']}) | "
+                                   f"Hazard: {row['Operational Hazard']} | "
+                                   f"Safety Risk: {row['Employee Safety Risk']}")
+
+        hazard_summary = "\n".join(hazards[:30])  # limit to 30 hazards for token safety
+
+        # Build prompt
+        prompt = f"""
+You are a drilling safety assistant. Below is the list of identified hazards during operations:
+
+{hazard_summary}
+
+User Question: {query}
+
+Answer clearly:
+1. Are workers safe overall? (Safe / Unsafe)
+2. Justify based on severity distribution (🔴 vs 🟡 vs 🟢).
+3. Provide 3 safety recommendations.
+"""
+
+        with st.spinner("Analyzing hazards with GenAI..."):
+            try:
+                response = client.chat.completions.create(
+                    model=DEPLOYMENT_NAME,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=800
+                )
+                answer = response.choices[0].message.content.strip()
+                st.markdown("### 🧠 GenAI Safety Assessment")
+                st.markdown(answer)
+            except Exception as e:
+                st.error(f"⚠️ Error fetching GenAI answer: {e}")
+
