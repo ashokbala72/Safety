@@ -260,7 +260,6 @@ with app_tab:
         st.dataframe(forecast_df)
         genai_summary("System-wide Forecast", forecast_df)
 
-    # Tab10
     with tab10:
     st.subheader("❓ Ask a Query")
     st.markdown("Type your question and let the GenAI assistant help:")
@@ -269,14 +268,24 @@ with app_tab:
     if query:
         # Aggregate hazards from all tabs
         hazards = []
-        for df in [drilling_view_table, bit_wear_table, logs_table, seismic_table, perf_table, hazard_table, forecast_table]:
-            if 'Issue' in df.columns:
+        for df in [
+            drilling_view_table,
+            bit_wear_table,
+            logs_table,
+            seismic_table,
+            perf_table,
+            hazard_table,
+            forecast_table,
+        ]:
+            if isinstance(df, pd.DataFrame) and "Issue" in df.columns:
                 for _, row in df.iterrows():
-                    hazards.append(f"- {row['Issue']} (Severity: {row['Severity']}) | "
-                                   f"Hazard: {row['Operational Hazard']} | "
-                                   f"Safety Risk: {row['Employee Safety Risk']}")
+                    hazards.append(
+                        f"- {row['Issue']} (Severity: {row['Severity']}) | "
+                        f"Hazard: {row['Operational Hazard']} | "
+                        f"Safety Risk: {row['Employee Safety Risk']}"
+                    )
 
-        hazard_summary = "\n".join(hazards[:30])  # limit to 30 hazards for token safety
+        hazard_summary = "\n".join(hazards[:30])  # avoid too many tokens
 
         # Build prompt
         prompt = f"""
@@ -297,11 +306,10 @@ Answer clearly:
                 response = client.chat.completions.create(
                     model=DEPLOYMENT_NAME,
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=800
+                    max_tokens=800,
                 )
                 answer = response.choices[0].message.content.strip()
                 st.markdown("### 🧠 GenAI Safety Assessment")
                 st.markdown(answer)
             except Exception as e:
                 st.error(f"⚠️ Error fetching GenAI answer: {e}")
-
